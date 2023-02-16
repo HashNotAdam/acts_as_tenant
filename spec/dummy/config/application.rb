@@ -15,5 +15,7 @@ module Dummy
     if Rails.gem_version < Gem::Version.new("6.0") && config.active_record.sqlite3
       config.active_record.sqlite3.represent_boolean_as_integer = true
     end
+
+    config.active_record.legacy_connection_handling = false
   end
 end
