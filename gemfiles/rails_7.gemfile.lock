@@ -123,6 +123,8 @@ GEM
     nokogiri (1.15.5)
       mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
+    nokogiri (1.15.5-arm64-darwin)
+      racc (~> 1.4)
     nokogiri (1.15.5-x86_64-darwin)
       racc (~> 1.4)
     nokogiri (1.15.5-x86_64-linux)
@@ -214,6 +216,7 @@ GEM
       redis-client (>= 0.14.0)
     sqlite3 (1.6.9)
       mini_portile2 (~> 2.8.0)
+    sqlite3 (1.6.9-arm64-darwin)
     sqlite3 (1.6.9-x86_64-darwin)
     sqlite3 (1.6.9-x86_64-linux)
     standard (1.32.1)
@@ -239,6 +242,7 @@ GEM
     zeitwerk (2.6.12)
 
 PLATFORMS
+  arm64-darwin-23
   ruby
   x86_64-darwin-21
   x86_64-linux
