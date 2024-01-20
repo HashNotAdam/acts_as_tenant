@@ -94,6 +94,7 @@ module ActsAsTenant
         # - Add a helper method to verify if a model has been scoped by AaT
         to_include = Module.new {
           define_method :"#{fkey}=" do |integer|
+
             if reflection.macro == :has_many
               associations = public_send(reflection.name)
               # If an association has been created manually on a has_and_belongs_to_many before the
