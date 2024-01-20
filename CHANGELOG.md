@@ -1,6 +1,43 @@
 Unreleased
 ----------
 
+* Add `config.tenant_change_hook` callback when a tenant changes. [#333](https://github.com/ErwinM/acts_as_tenant/pull/333)
+
+This can be used to implement Postgres's row-level security for example
+
+```ruby
+ActsAsTenant.configure do |config|
+  config.tenant_change_hook = lambda do |tenant|
+    if tenant.present?
+      ActiveRecord::Base.connection.execute(ActiveRecord::Base.sanitize_sql_array(["SET rls.account_id = ?;", tenant.id]))
+      Rails.logger.info "Changed tenant to " + [tenant.id, tenant.name].to_json
+    end
+  end
+end
+```
+
+1.0.1
+-----
+
+* Cast GID to string for job args #326
+
+1.0.0
+-----
+
+* [Breaking] Drop Rails 5.2 support
+* Set current_tenant with ActiveJob automatically #319
+* Replace RequestStore dependency with CurrentAttributes. #313 - @excid3
+* Add `scope` support to `acts_as_tenant :account, ->{ with_deleted }` #282 - @adrian-gomez
+  The scope will be forwarded to `belongs_to`.
+* Add `job_scope` configuration to customize how tenants are loaded in background jobs - @excid3
+  This is helpful for situations like soft delete:
+
+```ruby
+ActsAsTenant.configure do |config|
+  config.job_scope = ->{ with_deleted }
+end
+```
+
 0.6.1
 -----
 

@@ -3,7 +3,7 @@ module ActsAsTenant
     extend ActiveSupport::Concern
 
     class_methods do
-      def acts_as_tenant(tenant = :account, **options)
+      def acts_as_tenant(tenant = :account, scope = nil, **options)
         ActsAsTenant.set_tenant_klass(tenant)
         ActsAsTenant.mutable_tenant!(false)
 
@@ -59,10 +59,10 @@ module ActsAsTenant
         before_validation proc { |m|
           if ActsAsTenant.current_tenant
             if options[:polymorphic]
-              m.send("#{fkey}=".to_sym, ActsAsTenant.current_tenant.class.to_s) if m.send(fkey.to_s).nil?
-              m.send("#{polymorphic_type}=".to_sym, ActsAsTenant.current_tenant.class.to_s) if m.send(polymorphic_type.to_s).nil?
+              m.send(:"#{fkey}=", ActsAsTenant.current_tenant.class.to_s) if m.send(fkey.to_s).nil?
+              m.send(:"#{polymorphic_type}=", ActsAsTenant.current_tenant.class.to_s) if m.send(polymorphic_type.to_s).nil?
             else
-              m.send "#{fkey}=".to_sym, ActsAsTenant.current_tenant.send(pkey)
+              m.send :"#{fkey}=", ActsAsTenant.current_tenant.send(pkey)
             end
           end
         }, on: :create
@@ -74,12 +74,16 @@ module ActsAsTenant
         reflect_on_all_associations(:belongs_to).each do |a|
           unless a == reflect_on_association(tenant) || polymorphic_foreign_keys.include?(a.foreign_key)
             validates_each a.foreign_key.to_sym do |record, attr, value|
+              next if value.nil?
+              next unless record.will_save_change_to_attribute?(attr)
+
               primary_key = if a.respond_to?(:active_record_primary_key)
                 a.active_record_primary_key
               else
                 a.primary_key
               end.to_sym
-              record.errors.add attr, "association is invalid [ActsAsTenant]" unless value.nil? || a.klass.where(primary_key => value).any?
+              scope = a.scope || ->(relation) { relation }
+              record.errors.add attr, "association is invalid [ActsAsTenant]" unless a.klass.class_eval(&scope).where(primary_key => value).any?
             end
           end
         end
@@ -89,7 +93,8 @@ module ActsAsTenant
         # - Add an override to prevent unnecessary db hits
         # - Add a helper method to verify if a model has been scoped by AaT
         to_include = Module.new {
-          define_method "#{fkey}=" do |integer|
+          define_method :"#{fkey}=" do |integer|
+
             if reflection.macro == :has_many
               associations = public_send(reflection.name)
               # If an association has been created manually on a has_and_belongs_to_many before the
@@ -126,7 +131,7 @@ module ActsAsTenant
             integer
           end
 
-          define_method "#{ActsAsTenant.tenant_klass}=" do |model|
+          define_method :"#{ActsAsTenant.tenant_klass}=" do |model|
             super(model)
             raise ActsAsTenant::Errors::TenantIsImmutable if !ActsAsTenant.mutable_tenant? && tenant_modified?
             model

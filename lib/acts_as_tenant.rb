@@ -1,5 +1,4 @@
-require "request_store"
-
+require "active_support/current_attributes"
 require "acts_as_tenant/version"
 require "acts_as_tenant/errors"
 
@@ -8,11 +7,26 @@ module ActsAsTenant
   autoload :ControllerExtensions, "acts_as_tenant/controller_extensions"
   autoload :ModelExtensions, "acts_as_tenant/model_extensions"
   autoload :TenantHelper, "acts_as_tenant/tenant_helper"
+  autoload :ActiveJobExtensions, "acts_as_tenant/active_job_extensions"
 
   @@configuration = nil
   @@tenant_klass = nil
   @@models_with_global_records = []
   @@mutable_tenant = false
+
+  class Current < ActiveSupport::CurrentAttributes
+    attribute :current_tenant, :acts_as_tenant_unscoped
+
+    def current_tenant=(tenant)
+      super.tap do
+        configuration.tenant_change_hook.call(tenant) if configuration.tenant_change_hook.present?
+      end
+    end
+
+    def configuration
+      Module.nesting.last.class_variable_get(:@@configuration)
+    end
+  end
 
   class << self
     attr_writer :default_tenant
@@ -57,11 +71,11 @@ module ActsAsTenant
   end
 
   def self.current_tenant=(tenant)
-    RequestStore.store[:current_tenant] = tenant
+    Current.current_tenant = tenant
   end
 
   def self.current_tenant
-    RequestStore.store[:current_tenant] || test_tenant || default_tenant
+    Current.current_tenant || test_tenant || default_tenant
   end
 
   def self.test_tenant=(tenant)
@@ -73,11 +87,11 @@ module ActsAsTenant
   end
 
   def self.unscoped=(unscoped)
-    RequestStore.store[:acts_as_tenant_unscoped] = unscoped
+    Current.acts_as_tenant_unscoped = unscoped
   end
 
   def self.unscoped
-    RequestStore.store[:acts_as_tenant_unscoped]
+    Current.acts_as_tenant_unscoped
   end
 
   def self.unscoped?
@@ -156,4 +170,8 @@ end
 
 ActiveSupport.on_load(:action_view) do |base|
   base.include ActsAsTenant::TenantHelper
+end
+
+ActiveSupport.on_load(:active_job) do |base|
+  base.prepend ActsAsTenant::ActiveJobExtensions
 end
